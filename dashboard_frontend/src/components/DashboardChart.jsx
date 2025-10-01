@@ -16,6 +16,7 @@ import {
  * DashboardChart
  * Fetches data from Supabase 'Marktet_Data' table and visualizes 'Target_Audience' and 'Channel_Used'.
  * The chart aggregates counts of Channel_Used within each Target_Audience.
+ * This component is used as the Overview's primary grouped bar visualization.
  *
  * Props:
  *  - className?: string - optional CSS class for outer container
