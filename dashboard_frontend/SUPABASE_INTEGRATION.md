@@ -1,11 +1,13 @@
 # Supabase Integration
 
-This frontend uses Supabase to load the `Marktet_Data` table and display multiple analyses:
-- Grouped bar: Target_Audience vs Channel_Used
-- Line trends: Channel_Used counts over time (if a date column exists)
-- Pie/Donut: Channel share distribution
-- Scatter/Bubble: Audience vs Channel frequency
-- Data table: Paginated rows preview
+This frontend uses Supabase to load the `Marktet_Data` table and display extensive analyses (30+ widgets), including:
+- Time trends (conversion, clicks, impressions, CTR, ROI, rolling averages)
+- Category breakdowns (channel, audience, segment, language, location, campaign type)
+- Correlations and scatter views
+- Efficiency and radar visualizations
+- Funnel approximation
+- Matrix/heatmap-like breakdowns
+- Data table and KPI cards
 
 ## Environment Variables
 
@@ -19,31 +21,40 @@ These variables are used by `src/supabaseClient.js`.
 ## Data Requirements
 
 Table: `Marktet_Data`  
-Columns required (text/varchar recommended):
-- `Target_Audience`
-- `Channel_Used`
+Columns:
+- Campaign_ID (bigint PK)
+- Company (text)
+- Campaign_Type (text)
+- Target_Audience (text)
+- Duration (text)
+- Channel_Used (text)
+- Conversion_Rate (float)
+- Acquisition_Cost (text/currency-like)
+- ROI (float)
+- Location (text)
+- Language (text)
+- Clicks (bigint)
+- Impressions (bigint)
+- Engagement_Score (bigint)
+- Customer_Segment (text)
+- Date (text/date-like)
 
-Optional (for trends):
-- `Date` or `Created_At` (or similar) to provide a time axis.
+The frontend attempts to parse numeric text; Date is normalized to YYYY-MM-DD if parseable.
 
 ## Row Level Security (RLS)
 
 If RLS is enabled (default), ensure the anon role can SELECT from `Marktet_Data`:
+- Create a SELECT policy for anon or expose views with SELECT permissions.
 
-Example permissive policy:
-1. Enable RLS on the table (if not already).
-2. Create a policy like:
-   - Name: allow_select_marktet_data
-   - Action: SELECT
-   - Using expression: true
-
-Without an appropriate SELECT policy the frontend will report a permission error and cannot show data.
+Without an appropriate policy, the frontend will show permission errors.
 
 ## Handling Large Datasets
 
-For large tables, consider server-side aggregation to reduce bandwidth:
-- Create a view that groups the data:
+For large tables, prefer server-side aggregation:
+- Create pre-aggregated views or RPCs (e.g., per-channel daily summaries).
+- The app currently fetches up to ~20k rows for client-side aggregation via `useMarketData`.
 
+Example aggregated view:
 ```sql
 create or replace view market_audience_channel_counts as
 select
@@ -54,21 +65,17 @@ from "Marktet_Data"
 group by 1,2;
 ```
 
-- Grant SELECT on the view and create an RLS policy for it (if needed).
-- Update the frontend to read from the view and pivot on `cnt`.
-
-The current frontend caps the sample to 10,000 rows (for some views) and aggregates client-side.
-
 ## Files
 
-- `src/supabaseClient.js` — initializes and exports a singleton Supabase client.
-- `src/components/DashboardChart.jsx` — grouped bar chart (audience vs channels).
-- `src/components/AudienceChannelTrends.jsx` — line trends chart.
-- `src/components/ChannelSharePie.jsx` — pie/donut chart of channel share.
-- `src/components/AudienceScatter.jsx` — bubble scatter of audience vs channel.
-- `src/components/MarketDataTable.jsx` — paginated table view.
-- `src/App.js` — modern layout with header, sidebar, and main dashboard area.
+- `src/supabaseClient.js` — singleton Supabase client.
+- `src/hooks/useMarketData.js` — global load & filter state.
+- `src/utils/dataUtils.js` — parsing & aggregation utilities.
+- `src/components/ChartGrid.jsx` — grid layout helper.
+- `src/components/KPICard.jsx` — KPI summary card.
+- `src/components/analytics/` — 30+ modular widgets.
+- `src/components/MarketDataTable.jsx` — paginated table.
+- `src/App.js` — header, sidebar filters, grid sections with navigation.
 
 ## Styling
 
-The layout follows the Ocean Professional style with subtle shadows, rounded corners, and blue/amber accents.
+Ocean Professional: blue/amber accents, gradient highlights, subtle shadows, rounded corners, minimalist and responsive.

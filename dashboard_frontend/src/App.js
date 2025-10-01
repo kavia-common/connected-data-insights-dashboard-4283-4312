@@ -5,6 +5,43 @@ import AudienceChannelTrends from './components/AudienceChannelTrends';
 import ChannelSharePie from './components/ChannelSharePie';
 import AudienceScatter from './components/AudienceScatter';
 import MarketDataTable from './components/MarketDataTable';
+import ChartGrid from './components/ChartGrid';
+import useMarketData from './hooks/useMarketData';
+import {
+  KPIOverview,
+  ConversionRateTrend,
+  ImpressionsTrend,
+  ClicksTrend,
+  CTRTrend,
+  ROITrend,
+  ChannelPerformanceBar,
+  AudienceConversionBar,
+  SegmentROIBar,
+  LocationLanguageHeatmap,
+  ChannelShareDonut,
+  CampaignTypeSharePie,
+  AcquisitionCostHistogram,
+  ConversionVsROIScatter,
+  ClicksVsImpressionsScatter,
+  EngagementVsROIScatter,
+  ChannelEfficiencyRadar,
+  AudienceChannelMatrix,
+  SegmentChannelStacked,
+  LanguageShareBar,
+  LocationShareBar,
+  CampaignTypePerformance,
+  FunnelClicksToConversions,
+  ROIByLocationBar,
+  ROIByChannelBar,
+  ConversionByChannelBar,
+  ConversionByAudienceBar,
+  EngagementByChannelBar,
+  EngagementByAudienceBar,
+  DailyVolumeArea,
+  Rolling7DayAvgLine,
+  ROIBox,
+  CorrelationMatrixMini
+} from './components/analytics/index';
 
 // PUBLIC_INTERFACE
 function App() {
@@ -18,6 +55,9 @@ function App() {
   const [theme, setTheme] = useState('light');
   const [activeView, setActiveView] = useState('overview');
 
+  // Filters state lives here and passed down through useMarketData hook consumers
+  const { filters, allChannels, allAudiences, allSegments, allLocations, allLanguages } = useMarketData();
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -30,9 +70,12 @@ function App() {
   const navItems = useMemo(() => ([
     { id: 'overview', label: 'Overview' },
     { id: 'trends', label: 'Trends' },
-    { id: 'channel-share', label: 'Channel Share' },
-    { id: 'audience-scatter', label: 'Audience Scatter' },
-    { id: 'table', label: 'Data Table' },
+    { id: 'breakdowns', label: 'Breakdowns' },
+    { id: 'correlations', label: 'Correlations' },
+    { id: 'efficiency', label: 'Efficiency' },
+    { id: 'matrices', label: 'Matrices' },
+    { id: 'funnel', label: 'Funnel' },
+    { id: 'tables', label: 'Tables' },
     { id: 'settings', label: 'Settings' },
   ]), []);
 
@@ -70,24 +113,38 @@ function App() {
             <div style={{ fontSize: 12, color: '#6B7280' }}>Ocean Professional</div>
           </div>
         </div>
-        <button
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          style={{ backgroundColor: '#2563EB' }}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            placeholder="Search..."
+            value={filters.search}
+            onChange={(e) => filters.setSearch(e.target.value)}
+            style={{
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontSize: 14,
+              outline: 'none'
+            }}
+          />
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            style={{ backgroundColor: '#2563EB' }}
+          >
+            {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+          </button>
+        </div>
       </header>
 
       {/* Layout grid */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '240px 1fr',
+          gridTemplateColumns: '260px 1fr',
           gap: 16,
           padding: 16,
-          maxWidth: 1400,
+          maxWidth: 1480,
           margin: '0 auto',
         }}
       >
@@ -108,7 +165,7 @@ function App() {
           <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>
             Navigation
           </div>
-          <nav style={{ display: 'grid', gap: 8 }}>
+          <nav style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             {navItems.map(({ id, label }) => {
               const active = id === activeView;
               return (
@@ -131,6 +188,66 @@ function App() {
               );
             })}
           </nav>
+
+          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>Filters</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <label style={{ fontSize: 12, color: '#374151' }}>
+              Channel
+              <select
+                value={filters.channelFilter}
+                onChange={(e) => filters.setChannelFilter(e.target.value)}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5E7EB', marginTop: 4 }}
+              >
+                <option>All</option>
+                {allChannels.map(ch => <option key={ch}>{ch}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#374151' }}>
+              Audience
+              <select
+                value={filters.audienceFilter}
+                onChange={(e) => filters.setAudienceFilter(e.target.value)}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5E7EB', marginTop: 4 }}
+              >
+                <option>All</option>
+                {allAudiences.map(a => <option key={a}>{a}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#374151' }}>
+              Segment
+              <select
+                value={filters.segmentFilter}
+                onChange={(e) => filters.setSegmentFilter(e.target.value)}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5E7EB', marginTop: 4 }}
+              >
+                <option>All</option>
+                {allSegments.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#374151' }}>
+              Location
+              <select
+                value={filters.locationFilter}
+                onChange={(e) => filters.setLocationFilter(e.target.value)}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5E7EB', marginTop: 4 }}
+              >
+                <option>All</option>
+                {allLocations.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 12, color: '#374151' }}>
+              Language
+              <select
+                value={filters.languageFilter}
+                onChange={(e) => filters.setLanguageFilter(e.target.value)}
+                style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #E5E7EB', marginTop: 4 }}
+              >
+                <option>All</option>
+                {allLanguages.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </label>
+          </div>
+
           <div style={{ marginTop: 12, padding: 10, borderTop: '1px dashed #e5e7eb', fontSize: 12, color: '#6B7280' }}>
             REACT_APP_SUPABASE_URL/KEY must be set in .env
           </div>
@@ -140,28 +257,114 @@ function App() {
         <main style={{ display: 'grid', gap: 16 }}>
           {activeView === 'overview' && (
             <>
-              <DashboardChart />
-              <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr 1fr' }}>
-                <ChannelSharePie />
-                <AudienceScatter />
-              </div>
+              <KPIOverview />
+              <ChartGrid columns={2}>
+                <DashboardChart />
+                <ChannelShareDonut />
+              </ChartGrid>
+              <ChartGrid columns={3}>
+                <ConversionRateTrend />
+                <ImpressionsTrend />
+                <ClicksTrend />
+              </ChartGrid>
+              <ChartGrid columns={3}>
+                <CTRTrend />
+                <ROITrend />
+                <ROIBox />
+              </ChartGrid>
             </>
           )}
 
           {activeView === 'trends' && (
-            <AudienceChannelTrends />
+            <>
+              <AudienceChannelTrends />
+              <ChartGrid columns={2}>
+                <DailyVolumeArea />
+                <Rolling7DayAvgLine />
+              </ChartGrid>
+            </>
           )}
 
-          {activeView === 'channel-share' && (
-            <ChannelSharePie />
+          {activeView === 'breakdowns' && (
+            <>
+              <ChartGrid columns={2}>
+                <ChannelPerformanceBar />
+                <AudienceConversionBar />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <SegmentROIBar />
+                <CampaignTypePerformance />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <LanguageShareBar />
+                <LocationShareBar />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <ROIByLocationBar />
+                <ROIByChannelBar />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <ConversionByChannelBar />
+                <ConversionByAudienceBar />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <EngagementByChannelBar />
+                <EngagementByAudienceBar />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <AcquisitionCostHistogram />
+                <CampaignTypeSharePie />
+              </ChartGrid>
+            </>
           )}
 
-          {activeView === 'audience-scatter' && (
-            <AudienceScatter />
+          {activeView === 'correlations' && (
+            <>
+              <ChartGrid columns={2}>
+                <ConversionVsROIScatter />
+                <ClicksVsImpressionsScatter />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <EngagementVsROIScatter />
+                <CorrelationMatrixMini />
+              </ChartGrid>
+            </>
           )}
 
-          {activeView === 'table' && (
-            <MarketDataTable />
+          {activeView === 'efficiency' && (
+            <>
+              <ChartGrid columns={2}>
+                <ChannelEfficiencyRadar />
+                <AudienceScatter />
+              </ChartGrid>
+              <ChartGrid columns={2}>
+                <ChannelSharePie />
+                <FunnelClicksToConversions />
+              </ChartGrid>
+            </>
+          )}
+
+          {activeView === 'matrices' && (
+            <>
+              <ChartGrid columns={1}>
+                <AudienceChannelMatrix />
+              </ChartGrid>
+              <ChartGrid columns={1}>
+                <LocationLanguageHeatmap />
+              </ChartGrid>
+            </>
+          )}
+
+          {activeView === 'funnel' && (
+            <>
+              <FunnelClicksToConversions />
+            </>
+          )}
+
+          {activeView === 'tables' && (
+            <>
+              <MarketDataTable />
+            </>
           )}
 
           {activeView === 'settings' && (
