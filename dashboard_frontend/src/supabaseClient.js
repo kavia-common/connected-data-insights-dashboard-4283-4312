@@ -26,6 +26,7 @@ export function getSupabaseClient() {
     );
   }
 
+  // Create client even if empty to avoid crashes; queries will surface error messages in UI.
   supabase = createClient(url || "", anonKey || "");
   return supabase;
 }

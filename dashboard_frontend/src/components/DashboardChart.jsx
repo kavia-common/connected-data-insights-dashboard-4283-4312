@@ -27,28 +27,67 @@ const DashboardChart = ({ className = "" }) => {
   const [rawRows, setRawRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [debugInfo, setDebugInfo] = useState({ totalCount: null, fetched: 0 });
 
   // Fetch data from Supabase on mount
   useEffect(() => {
     let cancelled = false;
+
     const fetchData = async () => {
       setLoading(true);
       setErrorMsg("");
+      setDebugInfo({ totalCount: null, fetched: 0 });
+
       try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from("Marktet_Data")
-          .select("Target_Audience, Channel_Used");
 
-        if (error) throw error;
+        // Basic env validation to avoid silent misconfigurations
+        const url = process.env.REACT_APP_SUPABASE_URL;
+        const key = process.env.REACT_APP_SUPABASE_KEY;
+        if (!url || !key) {
+          throw new Error(
+            "Missing Supabase env vars. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_KEY."
+          );
+        }
+
+        // Fetch a capped slice to avoid pulling 194k rows into the browser.
+        // Also request count to detect RLS/permission issues vs empty table.
+        const { data, error, count } = await supabase
+          .from("Marktet_Data")
+          .select("Target_Audience, Channel_Used", { count: "exact" })
+          .not("Target_Audience", "is", null)
+          .not("Channel_Used", "is", null)
+          .neq("Target_Audience", "")
+          .neq("Channel_Used", "")
+          .range(0, 9999); // cap at 10k rows for client-side aggregation
+
+        if (error) {
+          // Surface common RLS/permission errors with actionable guidance
+          if (error.code === "PGRST301" || error.message?.toLowerCase().includes("permission")) {
+            throw new Error(
+              "Permission denied (RLS). Ensure the 'Marktet_Data' table has a SELECT policy for anon key."
+            );
+          }
+          throw error;
+        }
+
         if (!cancelled) {
-          setRawRows(Array.isArray(data) ? data : []);
+          const rows = Array.isArray(data) ? data : [];
+          setRawRows(rows);
+          setDebugInfo({ totalCount: typeof count === "number" ? count : null, fetched: rows.length });
+
+          // If the table reports rows exist but none fetched, column names may mismatch or RLS filtered columns.
+          if ((count ?? 0) > 0 && rows.length === 0) {
+            setErrorMsg(
+              "Rows exist in 'Marktet_Data' but no rows fetched for the selected columns. Check column names and RLS policies."
+            );
+          }
         }
       } catch (err) {
         if (!cancelled) {
           setErrorMsg(
             (err && err.message) ||
-              "Failed to load data from Supabase. Check credentials and table/columns."
+              "Failed to load data from Supabase. Check credentials, table name, and columns."
           );
         }
       } finally {
@@ -69,8 +108,8 @@ const DashboardChart = ({ className = "" }) => {
     const channelSet = new Set();
 
     rawRows.forEach((row) => {
-      const audience = String(row?.Target_Audience || "Unknown");
-      const channel = String(row?.Channel_Used || "Unknown");
+      const audience = String(row?.Target_Audience ?? "Unknown").trim() || "Unknown";
+      const channel = String(row?.Channel_Used ?? "Unknown").trim() || "Unknown";
       channelSet.add(channel);
       if (!audienceMap.has(audience)) {
         audienceMap.set(audience, {});
@@ -79,14 +118,16 @@ const DashboardChart = ({ className = "" }) => {
       counts[channel] = (counts[channel] || 0) + 1;
     });
 
-    const channelsArr = Array.from(channelSet);
-    const dataArr = Array.from(audienceMap.entries()).map(([audience, counts]) => {
-      const base = { Target_Audience: audience };
-      channelsArr.forEach((c) => {
-        base[c] = counts[c] || 0;
+    const channelsArr = Array.from(channelSet).sort();
+    const dataArr = Array.from(audienceMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([audience, counts]) => {
+        const base = { Target_Audience: audience };
+        channelsArr.forEach((c) => {
+          base[c] = counts[c] || 0;
+        });
+        return base;
       });
-      return base;
-    });
 
     return { data: dataArr, channels: channelsArr };
   }, [rawRows]);
@@ -184,7 +225,12 @@ const DashboardChart = ({ className = "" }) => {
             fontSize: 14,
           }}
         >
-          No data available. Add rows to the Marktet_Data table.
+          No data available. Verify table name 'Marktet_Data' and column names 'Target_Audience' and 'Channel_Used'. Check RLS policies if using anon key.
+          {debugInfo.totalCount !== null && (
+            <div style={{ marginTop: 6, fontSize: 12, color: "#9CA3AF" }}>
+              Debug: total rows reported = {debugInfo.totalCount}, fetched sample = {debugInfo.fetched}
+            </div>
+          )}
         </div>
       )}
 
@@ -241,6 +287,11 @@ const DashboardChart = ({ className = "" }) => {
               ))}
             </BarChart>
           </ResponsiveContainer>
+          {debugInfo.totalCount !== null && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#9CA3AF" }}>
+              Showing aggregated sample from {debugInfo.fetched} rows (total table rows reported: {debugInfo.totalCount}). Consider adding a server-side aggregation view for large datasets.
+            </div>
+          )}
         </div>
       )}
     </div>
